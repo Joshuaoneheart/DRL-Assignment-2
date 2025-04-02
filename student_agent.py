@@ -309,7 +309,7 @@ def maximize(state, score, env, depth):
         if u + mb[2] - score >= max_utility:
             max_utility = u + mb[2] - score
             best_direction = mb[0]
-    return best_direction, max_utility, softmax(dist)
+    return best_direction, max_utility, 0
 
 def get_action(state, score):
     env = Game2048Env()
