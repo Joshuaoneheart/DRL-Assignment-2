@@ -3,6 +3,7 @@ import numpy as np
 import pickle
 import random
 import gym
+from copy import deepcopy
 from gym import spaces
 import matplotlib.pyplot as plt
 import copy
