@@ -9,6 +9,12 @@ import copy
 import random
 import math
 
+def create_env_from_state(env, state, score):
+    # Create a deep copy of the environment with the given state and score.
+    new_env = copy.deepcopy(env)
+    new_env.board = state.copy()
+    new_env.score = score
+    return new_env
 
 class Game2048Env(gym.Env):
     def __init__(self):
@@ -148,13 +154,14 @@ class Game2048Env(gym.Env):
             moved = False
 
         self.last_move_valid = moved  # Record if the move was valid
+        tmp = deepcopy(self.board)
 
         if moved:
             self.add_random_tile()
 
         done = self.is_game_over()
 
-        return self.board, self.score, done, {}
+        return self.board, self.score, done, {"before_add": tmp}
 
     def render(self, mode="human", action=None):
         """
@@ -228,12 +235,85 @@ class Game2048Env(gym.Env):
         else:
             raise ValueError("Invalid action")
 
+def eval_board(board, n_empty): 
+    grid = board
+
+    utility = 0
+    smoothness = 0
+
+    big_t = np.sum(np.power(grid, 2))
+    s_grid = np.sqrt(grid)
+    smoothness -= np.sum(np.abs(s_grid[::,0] - s_grid[::,1]))
+    smoothness -= np.sum(np.abs(s_grid[::,1] - s_grid[::,2]))
+    smoothness -= np.sum(np.abs(s_grid[::,2] - s_grid[::,3]))
+    smoothness -= np.sum(np.abs(s_grid[0,::] - s_grid[1,::]))
+    smoothness -= np.sum(np.abs(s_grid[1,::] - s_grid[2,::]))
+    smoothness -= np.sum(np.abs(s_grid[2,::] - s_grid[3,::]))
+    
+    empty_w = 100000
+    smoothness_w = 3
+
+    empty_u = n_empty * empty_w
+    smooth_u = smoothness ** smoothness_w
+    big_t_u = big_t
+
+    utility += big_t
+    utility += empty_u
+    utility += smooth_u
+
+    return utility
+
         # If the simulated board is different from the current board, the move is legal
         return not np.array_equal(self.board, temp_board)
 
+def chance(state, score, env, depth):
+    empty_cells = list(zip(*np.where(state == 0)))
+    n_empty = len(empty_cells)
+    if depth >= 3:
+        return eval_board(state, n_empty)
+
+    if n_empty == 0:
+        _, utility, _ = maximize(state, score, env, depth + 1)
+        return utility
+    chance_2 = (.9 * (1 / n_empty))
+    chance_4 = (.1 * (1 / n_empty))
+    possible_tiles = []
+    for empty_cell in empty_cells:
+        possible_tiles.append((empty_cell, 2, chance_2))
+        possible_tiles.append((empty_cell, 4, chance_4))
+    u_s = 0
+    for t in possible_tiles:
+        new_state = deepcopy(state)
+        new_state[t[0][0]][t[0][1]] = t[1]
+        _, utility, _ = maximize(new_state, score, env, depth + 1)
+        u_s += utility * t[2]
+    return u_s
+
+def maximize(state, score, env, depth):
+    legal_moves = [a for a in range(4) if env.is_move_legal(a)]
+    move_board = []
+    for j in legal_moves:
+        sim_env = create_env_from_state(env, state, score)
+        next_state, new_score, done, info = sim_env.step(j)
+        move_board.append((j, info["before_add"], new_score, done))
+    max_utility = float('-inf')
+    best_direction = None
+    dist = np.zeros(4)
+    for mb in move_board:
+        if mb[3]:
+            u = 0
+        else:
+            u = chance(mb[1], mb[2], env, depth + 1)
+        dist[mb[0]] = u + mb[2] - score
+        if u + mb[2] - score >= max_utility:
+            max_utility = u + mb[2] - score
+            best_direction = mb[0]
+    return best_direction, max_utility, softmax(dist)
+
 def get_action(state, score):
     env = Game2048Env()
-    return random.choice([0, 1, 2, 3]) # Choose a random action
+    best_action, _, _ = maximize(state, score, env, 0)
+    return best_action # Choose a random action
     
     # You can submit this random agent to evaluate the performance of a purely random strategy.
 
