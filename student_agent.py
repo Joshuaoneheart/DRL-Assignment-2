@@ -234,6 +234,8 @@ class Game2048Env(gym.Env):
                 temp_board[i] = new_row[::-1]
         else:
             raise ValueError("Invalid action")
+        # If the simulated board is different from the current board, the move is legal
+        return not np.array_equal(self.board, temp_board)
 
 def eval_board(board, n_empty): 
     grid = board
@@ -263,8 +265,6 @@ def eval_board(board, n_empty):
 
     return utility
 
-        # If the simulated board is different from the current board, the move is legal
-        return not np.array_equal(self.board, temp_board)
 
 def chance(state, score, env, depth):
     empty_cells = list(zip(*np.where(state == 0)))
