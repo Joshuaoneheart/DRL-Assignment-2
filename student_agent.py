@@ -398,7 +398,7 @@ def get_action(state, score):
     legal_moves = valid_action(board)
     if score > 150000:
         best_action = random.choice(legal_moves)
-    else if board in dp:
+    elif board in dp:
         best_action = dp[board]
     else:
         best_action = ailib.find_best_move(board)
