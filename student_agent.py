@@ -501,8 +501,8 @@ def valid_action(board):
         if execute_move(i, board) != board:
             out.append(i)
     return out
-# with open("dp.pkl", "rb") as fp:
-    # dp = pickle.load(fp)
+with open("dp.pkl", "rb") as fp:
+    dp = pickle.load(fp)
 def to_c_board(m):
     board = 0
     i = 0
