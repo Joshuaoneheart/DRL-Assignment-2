@@ -341,11 +341,64 @@ def from_c_board(n):
         board.append(row)
     return board
 
-with open("dp.pkl", "rb") as fp:
-    dp = pickle.load(fp)
+def execute_move_0(board):
+    ret = board
+    t = transpose(board)
+    ret ^= col_up_table[(t >>  0) & ROW_MASK] <<  0
+    ret ^= col_up_table[(t >> 16) & ROW_MASK] <<  4
+    ret ^= col_up_table[(t >> 32) & ROW_MASK] <<  8
+    ret ^= col_up_table[(t >> 48) & ROW_MASK] << 12
+    return ret
+
+def execute_move_1(board):
+    ret = board
+    t = transpose(board)
+    ret ^= col_down_table[(t >>  0) & ROW_MASK] <<  0
+    ret ^= col_down_table[(t >> 16) & ROW_MASK] <<  4
+    ret ^= col_down_table[(t >> 32) & ROW_MASK] <<  8
+    ret ^= col_down_table[(t >> 48) & ROW_MASK] << 12
+    return ret
+
+def execute_move_2(board):
+    ret = board
+    ret ^= row_left_table[(board >>  0) & ROW_MASK] <<  0
+    ret ^= row_left_table[(board >> 16) & ROW_MASK] << 16
+    ret ^= row_left_table[(board >> 32) & ROW_MASK] << 32
+    ret ^= row_left_table[(board >> 48) & ROW_MASK] << 48
+    return ret
+
+def execute_move_3(board):
+    ret = board
+    ret ^= row_right_table[(board >>  0) & ROW_MASK] <<  0
+    ret ^= row_right_table[(board >> 16) & ROW_MASK] << 16
+    ret ^= row_right_table[(board >> 32) & ROW_MASK] << 32
+    ret ^= row_right_table[(board >> 48) & ROW_MASK] << 48
+    return ret
+
+def execute_move(move, board):
+    if(move == 0):
+        return execute_move_0(board)
+    elif move == 1:
+        return execute_move_1(board)
+    elif move == 2:
+        return execute_move_2(board)
+    elif move == 3:
+        return execute_move_3(board)
+    return None
+def valid_action(board):
+    out = []
+    for i in range(4):
+        if execute_move(i, board) != board:
+            out.append(i)
+    return out
+# with open("dp.pkl", "rb") as fp:
+    # dp = pickle.load(fp)
 def get_action(state, score):
     board = to_c_board(state)
-    if board in dp:
+    legal_moves = valid_action(board)
+    if score > 150000:
+        best_action = random.choice(legal_moves)
+    else if board in dp:
         best_action = dp[board]
     else:
         best_action = ailib.find_best_move(board)
