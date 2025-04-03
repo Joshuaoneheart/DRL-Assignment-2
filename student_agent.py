@@ -12,6 +12,107 @@ import copy
 import random
 import math
 
+row_left_table = [0] * 65536
+row_right_table = [0] * 65536
+col_up_table = [0] * 65536
+col_down_table = [0] * 65536
+heur_score_table = [0] * 65536
+score_table = [0] * 65536
+ROW_MASK = 0xFFFF
+FULL_MASK = 0xFFFFFFFFFFFFFFFF
+COL_MASK = 0x000F000F000F000F
+SCORE_LOST_PENALTY = 200000.0
+SCORE_MONOTONICITY_POWER = 4.0
+SCORE_MONOTONICITY_WEIGHT = 47.0
+SCORE_SUM_POWER = 3.5
+SCORE_SUM_WEIGHT = 11.0
+SCORE_MERGES_WEIGHT = 700.0
+SCORE_EMPTY_WEIGHT = 270.0
+
+def unpack_col(row):
+    tmp = row
+    return (tmp | (tmp << 12) | (tmp << 24) | (tmp << 36)) & COL_MASK
+
+def reverse_row(row):
+    return ((row >> 12) | ((row >> 4) & 0x00F0)  | ((row << 4) & 0x0F00) | (row << 12)) & ROW_MASK
+
+def init_tables():
+    for row in range(65536):
+        line = [(row >>  0) & 0xf,
+                (row >>  4) & 0xf,
+                (row >>  8) & 0xf,
+                (row >> 12) & 0xf]
+
+        score = 0
+        for i in range(4):
+            rank = line[i]
+            if rank >= 2:
+                score += (rank - 1) * (1 << rank)
+        score_table[row] = score
+
+        s = 0
+        empty = 0
+        merges = 0
+
+        prev = 0
+        counter = 0
+        for i in range(4):
+            rank = line[i]
+            s += pow(rank, SCORE_SUM_POWER)
+            if rank == 0:
+                empty += 1
+            else:
+                if prev == rank: 
+                    counter += 1
+                elif counter > 0:
+                    merges += 1 + counter
+                    counter = 0
+                prev = rank
+            
+        if counter > 0:
+            merges += 1 + counter
+
+        monotonicity_left = 0
+        monotonicity_right = 0
+        for i in range(1, 4):
+            if line[i-1] > line[i]:
+                monotonicity_left += pow(line[i-1], SCORE_MONOTONICITY_POWER) - pow(line[i], SCORE_MONOTONICITY_POWER)
+            else:
+                monotonicity_right += pow(line[i], SCORE_MONOTONICITY_POWER) - pow(line[i-1], SCORE_MONOTONICITY_POWER)
+        heur_score_table[row] = SCORE_LOST_PENALTY + \
+        SCORE_EMPTY_WEIGHT * empty + \
+            SCORE_MERGES_WEIGHT * merges - \
+            SCORE_MONOTONICITY_WEIGHT * min(monotonicity_left, monotonicity_right) - \
+            SCORE_SUM_WEIGHT * s
+
+        for i in range(3):
+            j = None
+            for j in range(i + 1, 4):
+                if line[j] != 0:
+                    break
+            if j == 4: 
+                break
+
+            if line[i] == 0:
+                line[i] = line[j]
+                line[j] = 0
+                i -= 1
+            elif line[i] == line[j]:
+                if line[i] != 0xf:
+                    line[i] += 1
+                line[j] = 0
+
+        result = (line[0] <<  0) | \
+                       (line[1] <<  4) | \
+                       (line[2] <<  8) | \
+                       (line[3] << 12)
+        rev_result = reverse_row(result)
+        rev_row = reverse_row(row)
+
+        row_left_table [    row] =                row  ^                result
+        row_right_table[rev_row] =            rev_row  ^            rev_result
+        col_up_table   [    row] = unpack_col(    row) ^ unpack_col(    result)
+        col_down_table [rev_row] = unpack_col(rev_row) ^ unpack_col(rev_result)
 for suffix in ['so', 'dll', 'dylib']:
     dllfn = 'bin/2048.' + suffix
     if not os.path.isfile(dllfn):
@@ -410,6 +511,8 @@ def to_c_board(m):
             board |= int((0 if c == 0 else np.log2(c))) << (4*i)
             i += 1
     return board
+init_tables()
+ailib.init_tables()
 def get_action(state, score):
     board = to_c_board(state)
     legal_moves = valid_action(board)
