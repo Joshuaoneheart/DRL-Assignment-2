@@ -393,6 +393,14 @@ def valid_action(board):
     return out
 # with open("dp.pkl", "rb") as fp:
     # dp = pickle.load(fp)
+def to_c_board(m):
+    board = 0
+    i = 0
+    for row in m:
+        for c in row:
+            board |= int((0 if c == 0 else np.log2(c))) << (4*i)
+            i += 1
+    return board
 def get_action(state, score):
     board = to_c_board(state)
     legal_moves = valid_action(board)
