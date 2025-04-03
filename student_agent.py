@@ -1,4 +1,6 @@
 # Remember to adjust your student ID in meta.xml
+import os
+import ctypes
 import numpy as np
 import pickle
 import random
