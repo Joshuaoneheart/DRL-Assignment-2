@@ -10,6 +10,22 @@ import copy
 import random
 import math
 
+for suffix in ['so', 'dll', 'dylib']:
+    dllfn = 'bin/2048.' + suffix
+    if not os.path.isfile(dllfn):
+        continue
+    ailib = ctypes.CDLL(dllfn)
+    break
+else:
+    print("Couldn't find 2048 library bin/2048.{so,dll,dylib}! Make sure to build it first.")
+    exit()
+
+ailib.find_best_move.argtypes = [ctypes.c_uint64]
+ailib.score_toplevel_move.argtypes = [ctypes.c_uint64, ctypes.c_int]
+ailib.score_toplevel_move.restype = ctypes.c_float
+ailib.execute_move.argtypes = [ctypes.c_int, ctypes.c_uint64]
+ailib.execute_move.restype = ctypes.c_uint64
+
 def create_env_from_state(env, state, score):
     # Create a deep copy of the environment with the given state and score.
     new_env = copy.deepcopy(env)
@@ -311,9 +327,26 @@ def maximize(state, score, env, depth):
             best_direction = mb[0]
     return best_direction, max_utility, 0
 
+def from_c_board(n):
+    board = []
+    i = 0
+    for ri in range(4):
+        row = []
+        for ci in range(4):
+            item = (n >> (4 * i)) & 0xf
+            row.append(0 if item == 0 else 1 << item)
+            i += 1
+        board.append(row)
+    return board
+
+with open("dp.pkl", "rb") as fp:
+    dp = pickle.load(fp)
 def get_action(state, score):
-    env = Game2048Env()
-    best_action, _, _ = maximize(state, score, env, 0)
+    board = to_c_board(state)
+    if board in dp:
+        best_action = dp[board]
+    else:
+        best_action = ailib.find_best_move(board)
     return best_action # Choose a random action
     
     # You can submit this random agent to evaluate the performance of a purely random strategy.
