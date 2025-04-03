@@ -385,6 +385,15 @@ def execute_move(move, board):
     elif move == 3:
         return execute_move_3(board)
     return None
+def transpose(x):
+    a1 = x & 0xF0F00F0FF0F00F0F
+    a2 = x & 0x0000F0F00000F0F0
+    a3 = x & 0x0F0F00000F0F0000
+    a = a1 | (a2 << 12) | (a3 >> 12)
+    b1 = a & 0xFF00FF0000FF00FF
+    b2 = a & 0x00FF00FF00000000
+    b3 = a & 0x00000000FF00FF00
+    return b1 | (b2 >> 24) | (b3 << 24)
 def valid_action(board):
     out = []
     for i in range(4):
