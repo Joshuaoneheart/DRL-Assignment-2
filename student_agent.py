@@ -516,7 +516,7 @@ ailib.init_tables()
 def get_action(state, score):
     board = to_c_board(state)
     legal_moves = valid_action(board)
-    if score > 450000:
+    if score > 700000:
         best_action = random.choice(legal_moves)
     elif board in dp:
         best_action = dp[board]
